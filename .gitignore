@@ -1,0 +1,187 @@
+// first of all the class:
+<?php
+class ImageChecker {
+
+	public function fileUploaded() {
+    	if(empty($_FILES)) {
+        	return FALSE;       
+    	} 
+    	$this->file = $_FILES[$this->formField];
+    	if(!file_exists($this->file['tmp_name']) || !is_uploaded_file($this->file['tmp_name'])) {
+        	$this->errors['FileNotExists'] = TRUE;
+        	return FALSE;
+    	}   
+    	return TRUE;
+	}
+
+	// function for php-error-check
+	public function php_error ($php_error) {
+		if ($php_error === UPLOAD_ERR_OK) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}    
+	}
+
+	// function for image-check
+	public function image_check ($result_array) {
+		if ($result_array !== false) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	}
+
+	// function for Content-type-check
+	public function content_type ($content_type) {
+		if ($content_type != "") {     
+			$valid_content_types = array("image/jpg" , "image/jpeg" , "image/png");
+			if (in_array($content_type , $valid_content_types)) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
+	}
+
+	// function for image-extension-check
+	public function image_extension ($image_extension) {
+		if ($image_extension != "") {
+			$valid_extensions = array("jpg" , "jpeg" , "png");
+			if (in_array($image_extension , $valid_extensions)) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
+	}
+	
+	// function for mime-check
+	public function mime_type ($mime_type) {
+		if ($mime_type != "") {     
+			$valid_mimes = array("image/jpg" , "image/jpeg" , "image/png");
+			if (in_array($mime_type , $valid_mimes)) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
+	}
+	
+	//function blacklist 
+	public function blacklist ($fileToCheck) {
+		$blacklist = array(".php", ".phtml", ".php3", ".php4");
+		foreach ($blacklist as $item) {
+			if (preg_match("/$item\$/i", $fileToCheck)) {
+				return FALSE;
+			} else {
+				return TRUE;
+			}
+		}
+	}
+
+	// function for size-check
+	public function size_of_file ($size) {
+		if ($size >= 100 && $size <= 1000000000) {      
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	}
+
+}
+?>
+
+//
+// you can call this class using:
+//
+
+<?php
+require 'classes/ImageChecker.php';
+
+if (!$_FILES)
+	exit;
+
+
+$imageChecker = new ImageChecker();
+
+$error = array();
+
+if(!$imageChecker->php_error($_FILES['picture']['error'])) {
+	$error["error"] = "php error ocurred";
+	echo json_encode($error);
+	exit();
+}
+
+$result_array = getimagesize($_FILES['picture']['tmp_name']);
+if(!$imageChecker->image_check($result_array)) {
+	$error["error"] = "not picture";
+	echo json_encode($error);
+	exit();
+}
+
+$content_type = $_FILES['picture']['type'];
+if(!$imageChecker->content_type($content_type)) {
+	$error["error"] = "wrong content_type";
+	echo json_encode($error);
+	exit();
+}
+
+if(!$imageChecker->image_extension(pathinfo($_FILES['picture']['name'], PATHINFO_EXTENSION))) {
+	$error["error"] = "wrong file-format";
+	echo json_encode($error);
+	exit();
+}
+
+$mimetype = getimagesize($_FILES['picture']['tmp_name']);
+if(!$imageChecker->mime_type($mimetype['mime'])) {
+	$error["error"] = "wrong mime-type";
+	echo json_encode($error);
+	exit();
+}
+
+$size = $_FILES['picture']['size'];
+if(!$imageChecker->size_of_file($size)) {
+	$error["error"] = "wrong size of file";
+	echo json_encode($error);
+	exit();
+}
+
+if(empty($error)) {
+	$error["error"] = "valid image file => secure";
+	echo json_encode($error);
+	exit();
+}
+?>
+
+//
+// using jquery on your form:
+//
+
+<script>
+$(document).ready(function(){
+	$("#picture-field").change(function(event) {
+		data = new FormData();
+    	data.append('picture', $('#picture-field')[0].files[0]);
+    		
+    	$.ajax({
+			url: 'checkImage.php',
+			data: data,
+			processData: false,
+			cache: false,
+			contentType: false,
+			type: 'POST',
+			dataType: "json",
+			success: function (data) {
+				$("#file-error").text(data.error ? data.error : "");
+			}
+		});
+	});
+</script>
+});
